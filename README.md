@@ -1,4 +1,4 @@
-# 表情包
+# 表情
 
 https://ciaran272.github.io/phi/
 
