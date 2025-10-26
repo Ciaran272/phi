@@ -258,6 +258,9 @@
             animation: expandGrid 0.4s ease;
             border: 4px solid #B8D8FF;
             box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            /* 性能优化：启用硬件加速和布局隔离 */
+            transform: translateZ(0);
+            contain: layout style;
         }
 
         .emoji-content.active {
@@ -298,6 +301,8 @@
             gap: 4px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.12);
             will-change: transform;
+            /* 性能优化：使用contain隔离布局计算 */
+            contain: layout style paint;
         }
 
         .emoji-char {
@@ -380,6 +385,9 @@
             max-width: 90vw;
             max-height: 80vh;
             overflow-y: auto;
+            /* 性能优化：启用硬件加速 */
+            transform: translateZ(0);
+            backface-visibility: hidden;
         }
 
         .variant-popup.show {
@@ -413,6 +421,8 @@
             border: 3px solid #D0E8FF;
             box-shadow: 0 2px 4px rgba(0,0,0,0.15);
             will-change: transform;
+            /* 性能优化：使用contain隔离渲染 */
+            contain: layout style paint;
         }
 
         .variant-item:hover {
@@ -464,14 +474,6 @@
         .toast.show {
             opacity: 1;
             transform: translateY(0);
-        }
-
-        footer {
-            text-align: center;
-            margin-top: 40px;
-            color: rgba(255,255,255,0.9);
-            font-size: 1em;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
 
         /* 响应式设计 */
@@ -572,10 +574,6 @@
         <div class="main-content" id="emojiContainer">
             <!-- 表情内容将通过JavaScript生成 -->
         </div>
-
-        <footer>
-            <p> 🌈让表达更生动 </p>
-        </footer>
     </div>
 
     <div class="toast" id="toast">✅ 已复制到剪贴板！</div>
@@ -584,8 +582,53 @@
     <div class="variant-popup" id="variantPopup"></div>
 
     <script>
-        // 完整的Emoji数据库
-        const emojiData = {
+        // 使用IIFE封装，避免全局变量污染
+        (function() {
+            'use strict';
+            
+            // 配置常量
+            const CONFIG = {
+                ANIMATION: {
+                    COPY_PULSE_DURATION: 600,      // 复制动画持续时间
+                    TOAST_SHOW_DURATION: 2000      // 提示显示时间
+                },
+                UI: {
+                    POPUP_OFFSET: 10,              // 弹出框与边界的最小距离
+                    SCROLL_BEHAVIOR: 'smooth'       // 滚动行为
+                }
+            };
+
+            // 性能优化：缓存系统
+            const categoryCache = new Map();      // 缓存分类内容
+            const variantCache = new Map();       // 缓存变体弹出框
+            let categoryHeaders = null;           // 缓存分类按钮DOM查询
+
+            // 工具函数：防抖
+            function debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
+            // 工具函数：清理缓存（在需要释放内存时调用）
+            function clearCache() {
+                categoryCache.clear();
+                variantCache.clear();
+            }
+
+            // 可选：监听内存压力事件自动清理缓存
+            if ('onmemorywarning' in window) {
+                window.addEventListener('memorywarning', clearCache);
+            }
+
+            // 完整的Emoji数据库
+            const emojiData = {
             "😋 表情与情感": {
                 icon: "😊",
                 keywords: ["表情", "情感", "笑脸", "开心", "难过", "生气", "惊讶"],
@@ -1064,8 +1107,6 @@
             emojiContent.className = 'emoji-content';
             emojiContent.id = 'emojiContent';
             
-            let hasResults = false;
-            
             Object.keys(emojiData).forEach(categoryName => {
                 const category = emojiData[categoryName];
                 
@@ -1075,23 +1116,33 @@
                 
                 const header = document.createElement('div');
                 header.className = 'category-header';
-                header.innerHTML = `
-                    <span class="category-icon">${category.icon}</span>
-                    <span class="category-title">${categoryName}</span>
-                `;
+                
+                // 安全地创建DOM元素，避免innerHTML
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'category-icon';
+                iconSpan.textContent = category.icon;
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'category-title';
+                titleSpan.textContent = categoryName;
+                
+                header.appendChild(iconSpan);
+                header.appendChild(titleSpan);
                 
                 // 添加点击事件
-                header.addEventListener('click', () => {
-                    showCategoryEmojis(categoryName, category, emojiContent);
+                header.addEventListener('click', (e) => {
+                    showCategoryEmojis(categoryName, category, emojiContent, header);
                 });
                 
                 categoryDiv.appendChild(header);
                 categoriesGrid.appendChild(categoryDiv);
-                hasResults = true;
             });
             
             container.appendChild(categoriesGrid);
             container.appendChild(emojiContent);
+            
+            // 性能优化：缓存分类按钮查询结果
+            categoryHeaders = categoriesGrid.querySelectorAll('.category-header');
             
             // 使用事件委托处理emoji点击和右键事件，减少内存占用
             emojiContent.addEventListener('click', (e) => {
@@ -1101,21 +1152,33 @@
                 }
             });
             
+            // 性能优化：为右键菜单添加防抖，避免快速操作时的性能问题
+            const debouncedShowVariant = debounce((emoji, item) => {
+                showVariantPopup(emoji, item);
+            }, 50);
+            
             emojiContent.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 const emojiItem = e.target.closest('.emoji-item');
                 if (emojiItem && emojiItem.dataset.emoji) {
-                    showVariantPopup(emojiItem.dataset.emoji, emojiItem);
+                    debouncedShowVariant(emojiItem.dataset.emoji, emojiItem);
                 }
             });
         }
 
-        // 显示某个分类的表情
-        function showCategoryEmojis(categoryName, category, emojiContent) {
-            // 移除所有按钮的激活状态
-            document.querySelectorAll('.category-header').forEach(btn => {
-                btn.classList.remove('active');
-            });
+        // 显示某个分类的表情（优化版：带缓存）
+        function showCategoryEmojis(categoryName, category, emojiContent, clickedElement) {
+            // 性能优化：使用缓存的DOM查询结果
+            if (categoryHeaders) {
+                categoryHeaders.forEach(btn => {
+                    btn.classList.remove('active');
+                });
+            } else {
+                // 降级方案
+                document.querySelectorAll('.category-header').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+            }
             
             // 如果点击的是当前激活的分类，则关闭
             if (activeCategory === categoryName) {
@@ -1127,56 +1190,66 @@
             
             // 设置新的激活分类
             activeCategory = categoryName;
-            if (event && event.target) {
-                event.target.closest('.category-header').classList.add('active');
+            if (clickedElement) {
+                clickedElement.classList.add('active');
             }
             
-            // 显示该分类的所有emoji
-            const emojisToShow = category.emojis;
-            
-            // 清空并重新填充表情 - 使用DocumentFragment优化性能
-            emojiContent.innerHTML = '';
-            const fragment = document.createDocumentFragment();
-            
-            emojisToShow.forEach(emoji => {
-                const emojiItem = document.createElement('div');
-                emojiItem.className = 'emoji-item';
-                emojiItem.dataset.emoji = emoji; // 使用data属性存储emoji，便于事件委托
+            // 性能优化：检查缓存，避免重复创建DOM
+            if (categoryCache.has(categoryName)) {
+                // 从缓存中快速恢复内容
+                const cachedContent = categoryCache.get(categoryName);
+                emojiContent.innerHTML = '';
+                emojiContent.appendChild(cachedContent.cloneNode(true));
+            } else {
+                // 首次渲染该分类，创建内容并缓存
+                const emojisToShow = category.emojis;
+                const fragment = document.createDocumentFragment();
                 
-                // emoji字符
-                const emojiChar = document.createElement('span');
-                emojiChar.className = 'emoji-char';
-                emojiChar.textContent = emoji;
-                emojiItem.appendChild(emojiChar);
+                emojisToShow.forEach(emoji => {
+                    const emojiItem = document.createElement('div');
+                    emojiItem.className = 'emoji-item';
+                    emojiItem.dataset.emoji = emoji;
+                    
+                    // emoji字符
+                    const emojiChar = document.createElement('span');
+                    emojiChar.className = 'emoji-char';
+                    emojiChar.textContent = emoji;
+                    emojiItem.appendChild(emojiChar);
+                    
+                    // 如果是国旗，添加国家名称标签
+                    if (flagNames[emoji]) {
+                        const label = document.createElement('span');
+                        label.className = 'emoji-label';
+                        label.textContent = flagNames[emoji];
+                        emojiItem.appendChild(label);
+                    }
+                    
+                    // 如果有变体，添加右下角三角形角标
+                    if (emojiVariants[emoji] && emojiVariants[emoji].length > 1) {
+                        const badge = document.createElement('div');
+                        badge.className = 'emoji-variant-badge';
+                        emojiItem.appendChild(badge);
+                    }
+                    
+                    emojiItem.title = '点击复制 | 右键查看变体';
+                    fragment.appendChild(emojiItem);
+                });
                 
-                // 如果是国旗，添加国家名称标签
-                if (flagNames[emoji]) {
-                    const label = document.createElement('span');
-                    label.className = 'emoji-label';
-                    label.textContent = flagNames[emoji];
-                    emojiItem.appendChild(label);
-                }
+                // 缓存创建的内容（克隆一份存储）
+                categoryCache.set(categoryName, fragment.cloneNode(true));
                 
-                // 如果有变体，添加右下角三角形角标
-                if (emojiVariants[emoji] && emojiVariants[emoji].length > 1) {
-                    const badge = document.createElement('div');
-                    badge.className = 'emoji-variant-badge';
-                    emojiItem.appendChild(badge);
-                }
-                
-                emojiItem.title = '点击复制 | 右键查看变体';
-                
-                fragment.appendChild(emojiItem);
-            });
-            
-            // 一次性添加所有元素，大幅减少重排次数
-            emojiContent.appendChild(fragment);
+                // 添加到页面
+                emojiContent.innerHTML = '';
+                emojiContent.appendChild(fragment);
+            }
             
             // 显示表情区域
             emojiContent.classList.add('active');
             
-            // 平滑滚动到表情区域
-            emojiContent.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // 性能优化：使用requestAnimationFrame延迟滚动，避免阻塞
+            requestAnimationFrame(() => {
+                emojiContent.scrollIntoView({ behavior: CONFIG.UI.SCROLL_BEHAVIOR, block: 'nearest' });
+            });
         }
 
         // 复制表情
@@ -1189,7 +1262,7 @@
                 element.classList.add('copied');
                 setTimeout(() => {
                     element.classList.remove('copied');
-                }, 600);
+                }, CONFIG.ANIMATION.COPY_PULSE_DURATION);
             } catch (err) {
                 // 降级方案
                 const textarea = document.createElement('textarea');
@@ -1205,7 +1278,7 @@
                 element.classList.add('copied');
                 setTimeout(() => {
                     element.classList.remove('copied');
-                }, 600);
+                }, CONFIG.ANIMATION.COPY_PULSE_DURATION);
             }
         }
 
@@ -1217,7 +1290,7 @@
             
             setTimeout(() => {
                 toast.classList.remove('show');
-            }, 2000);
+            }, CONFIG.ANIMATION.TOAST_SHOW_DURATION);
         }
 
         // 更新统计
@@ -1238,7 +1311,7 @@
             updateStats();
         }
 
-        // 显示变体弹出菜单
+        // 显示变体弹出菜单（优化版：带缓存）
         function showVariantPopup(emoji, targetElement) {
             const variants = emojiVariants[emoji];
             
@@ -1249,24 +1322,38 @@
             
             const popup = document.getElementById('variantPopup');
             
-            popup.innerHTML = '';
-            
-            // 添加所有变体
-            variants.forEach(variant => {
-                const variantItem = document.createElement('div');
-                variantItem.className = 'variant-item';
-                variantItem.textContent = variant;
-                variantItem.title = '点击复制';
+            // 性能优化：检查缓存，避免重复创建变体DOM
+            if (variantCache.has(emoji)) {
+                // 从缓存中快速恢复变体内容
+                const cachedVariants = variantCache.get(emoji);
+                popup.innerHTML = '';
+                popup.appendChild(cachedVariants.cloneNode(true));
+            } else {
+                // 首次显示该变体，创建内容并缓存
+                const fragment = document.createDocumentFragment();
                 
-                // 点击复制变体
-                variantItem.onclick = (e) => {
-                    e.stopPropagation();
-                    copyEmoji(variant, variantItem);
-                    hideVariantPopup();
-                };
+                variants.forEach(variant => {
+                    const variantItem = document.createElement('div');
+                    variantItem.className = 'variant-item';
+                    variantItem.textContent = variant;
+                    variantItem.title = '点击复制';
+                    
+                    // 点击复制变体
+                    variantItem.onclick = (e) => {
+                        e.stopPropagation();
+                        copyEmoji(variant, variantItem);
+                        hideVariantPopup();
+                    };
+                    
+                    fragment.appendChild(variantItem);
+                });
                 
-                popup.appendChild(variantItem);
-            });
+                // 缓存创建的变体内容
+                variantCache.set(emoji, fragment.cloneNode(true));
+                
+                popup.innerHTML = '';
+                popup.appendChild(fragment);
+            }
             
             // 获取目标元素的位置（相对于视口）
             const rect = targetElement.getBoundingClientRect();
@@ -1277,22 +1364,21 @@
             // 计算弹出框位置（在原表情上方，居中对齐）
             const popupRect = popup.getBoundingClientRect();
             let left = rect.left + (rect.width / 2) - (popupRect.width / 2);
-            let top = rect.top - popupRect.height - 10; // 上方10px间距
+            let top = rect.top - popupRect.height - CONFIG.UI.POPUP_OFFSET;
             
             // 确保不超出视口边界
             const windowWidth = window.innerWidth;
-            const windowHeight = window.innerHeight;
             
             // 左右边界检查
-            if (left < 10) {
-                left = 10;
-            } else if (left + popupRect.width > windowWidth - 10) {
-                left = windowWidth - popupRect.width - 10;
+            if (left < CONFIG.UI.POPUP_OFFSET) {
+                left = CONFIG.UI.POPUP_OFFSET;
+            } else if (left + popupRect.width > windowWidth - CONFIG.UI.POPUP_OFFSET) {
+                left = windowWidth - popupRect.width - CONFIG.UI.POPUP_OFFSET;
             }
             
             // 上下边界检查（如果上方空间不够，显示在下方）
-            if (top < 10) {
-                top = rect.bottom + 10;
+            if (top < CONFIG.UI.POPUP_OFFSET) {
+                top = rect.bottom + CONFIG.UI.POPUP_OFFSET;
             }
             
             // 设置位置
@@ -1325,8 +1411,10 @@
             }
         });
 
-        // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', initPage);
+            // 页面加载完成后初始化
+            document.addEventListener('DOMContentLoaded', initPage);
+            
+        })(); // IIFE结束
     </script>
 </body>
 </html>
