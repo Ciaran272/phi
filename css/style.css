@@ -1,16 +1,9 @@
-/**
- * Emoji Picker - 样式文件
- * 像素风格的现代化表情选择器
- */
-
-/* 全局重置 */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* 主体样式 */
 body {
     font-family: 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif;
     background: linear-gradient(180deg, 
@@ -31,42 +24,50 @@ body {
     image-rendering: crisp-edges;
 }
 
-/* 雪花飘落效果 */
 body::before {
     content: '❄';
     position: fixed;
-    top: -10%;
+    top: 0;
     left: 20%;
-    font-size: 2em;
-    color: rgba(255,255,255,0.7);
-    animation: snowfall 8s linear infinite, sway 3s ease-in-out infinite;
+    font-size: 2.5em;
+    color: rgba(255, 255, 255, 0.7);
+    animation: snowfall-1 10s linear infinite;
     pointer-events: none;
-    z-index: 0;
+    z-index: 1;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
 }
 
 body::after {
     content: '❅';
     position: fixed;
-    top: -10%;
-    right: 30%;
-    font-size: 1.5em;
-    color: rgba(255,255,255,0.6);
-    animation: snowfall 10s linear infinite 2s, sway 4s ease-in-out infinite;
+    top: 0;
+    right: 20%;
+    font-size: 2em;
+    color: rgba(255, 255, 255, 0.65);
+    animation: snowfall-2 12s linear infinite 2s;
     pointer-events: none;
-    z-index: 0;
+    z-index: 1;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
 }
 
-/* 动画定义 */
-@keyframes snowfall {
-    0% { transform: translateY(-100px); opacity: 0; }
+@keyframes snowfall-1 {
+    0% { transform: translate(0, -100px); opacity: 0; }
     10% { opacity: 1; }
+    25% { transform: translate(20px, 25vh); }
+    50% { transform: translate(40px, 50vh); }
+    75% { transform: translate(20px, 75vh); }
     90% { opacity: 1; }
-    100% { transform: translateY(100vh); opacity: 0; }
+    100% { transform: translate(0, 100vh); opacity: 0; }
 }
 
-@keyframes sway {
-    0%, 100% { transform: translateX(0); }
-    50% { transform: translateX(30px); }
+@keyframes snowfall-2 {
+    0% { transform: translate(0, -100px); opacity: 0; }
+    10% { opacity: 1; }
+    25% { transform: translate(-15px, 25vh); }
+    50% { transform: translate(-30px, 50vh); }
+    75% { transform: translate(-15px, 75vh); }
+    90% { opacity: 1; }
+    100% { transform: translate(0, 100vh); opacity: 0; }
 }
 
 @keyframes fadeInDown {
@@ -128,15 +129,13 @@ body::after {
     }
 }
 
-/* 容器 */
 .container {
     max-width: 1400px;
     margin: 0 auto;
     position: relative;
-    z-index: 1;
+    z-index: 10;
 }
 
-/* 头部 */
 header {
     text-align: center;
     margin-bottom: 30px;
@@ -160,7 +159,6 @@ h1 {
     filter: contrast(1.1);
 }
 
-/* 统计信息 */
 .stats-container {
     display: flex;
     justify-content: center;
@@ -185,7 +183,6 @@ h1 {
     box-shadow: 0 2px 6px rgba(0,0,0,0.25);
 }
 
-/* 主内容区 */
 .main-content {
     background: #E8F4FF;
     padding: 35px;
@@ -196,7 +193,6 @@ h1 {
     position: relative;
 }
 
-/* 像素装饰点 */
 .main-content::before {
     content: '';
     position: absolute;
@@ -225,7 +221,6 @@ h1 {
     z-index: -1;
 }
 
-/* 分类网格 */
 .categories-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -287,7 +282,6 @@ h1 {
     font-size: 0.95em;
 }
 
-/* 表情内容区 */
 .emoji-content {
     display: none;
     grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
@@ -299,10 +293,8 @@ h1 {
     animation: expandGrid 0.4s ease;
     border: 4px solid #B8D8FF;
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-    /* 性能优化：启用硬件加速和布局隔离 */
     transform: translateZ(0);
     contain: layout style;
-    /* 优化5：减少重绘和过度滚动 */
     content-visibility: auto;
     overscroll-behavior: contain;
 }
@@ -311,7 +303,6 @@ h1 {
     display: grid;
 }
 
-/* 表情项 */
 .emoji-item {
     font-size: 2em;
     padding: 12px 10px 10px 10px;
@@ -329,9 +320,7 @@ h1 {
     gap: 4px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.12);
     will-change: transform;
-    /* 性能优化：使用contain隔离布局计算 */
     contain: layout style paint;
-    /* 优化5：自动管理可见性渲染 */
     content-visibility: auto;
 }
 
@@ -375,7 +364,6 @@ h1 {
     text-align: center;
 }
 
-/* 变体角标 */
 .emoji-variant-badge {
     position: absolute;
     bottom: 0;
@@ -405,7 +393,6 @@ h1 {
     line-height: 1;
 }
 
-/* 变体弹出菜单 */
 .variant-popup {
     position: fixed;
     background: #E8F4FF;
@@ -419,7 +406,6 @@ h1 {
     max-width: 90vw;
     max-height: 80vh;
     overflow-y: auto;
-    /* 性能优化：启用硬件加速 */
     transform: translateZ(0);
     backface-visibility: hidden;
 }
@@ -444,9 +430,7 @@ h1 {
     border: 3px solid #D0E8FF;
     box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     will-change: transform;
-    /* 性能优化：使用contain隔离渲染 */
     contain: layout style paint;
-    /* 优化5：自动管理可见性渲染 */
     content-visibility: auto;
 }
 
@@ -462,7 +446,6 @@ h1 {
     box-shadow: 0 1px 3px rgba(255,200,61,0.25);
 }
 
-/* 提示消息 */
 .toast {
     position: fixed;
     bottom: 30px;
@@ -488,7 +471,6 @@ h1 {
     transform: translateY(0);
 }
 
-/* 响应式设计 */
 @media (max-width: 1200px) {
     .categories-grid {
         grid-template-columns: repeat(4, 1fr);
@@ -553,7 +535,6 @@ h1 {
     }
 }
 
-/* 滚动条美化 */
 ::-webkit-scrollbar {
     width: 12px;
 }
