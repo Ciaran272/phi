@@ -26,6 +26,10 @@ function debounce(func, wait) {
  * 释放内存时调用
  */
 function clearCache() {
-    if (typeof categoryCache !== 'undefined') categoryCache.clear();
-    if (typeof variantCache !== 'undefined') variantCache.clear();
+    if (typeof window.categoryCache !== 'undefined' && window.categoryCache) {
+        window.categoryCache.clear();
+    }
+    if (typeof window.variantCache !== 'undefined' && window.variantCache) {
+        window.variantCache.clear();
+    }
 }

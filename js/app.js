@@ -135,8 +135,9 @@
         // 性能优化：检查缓存
         if (window.categoryCache.has(categoryName)) {
             const cachedContent = window.categoryCache.get(categoryName);
-            // 性能优化1：使用replaceChildren替代innerHTML
-            emojiContent.replaceChildren(cachedContent.cloneNode(true));
+            // 性能优化1：克隆缓存内容并使用replaceChildren
+            const clonedContent = cachedContent.cloneNode(true);
+            emojiContent.replaceChildren(...clonedContent.childNodes);
         } else {
             // 首次渲染该分类（优化4：虚拟滚动准备）
             const emojisToShow = category.emojis;
@@ -182,8 +183,8 @@
                 
                 requestAnimationFrame(renderNextBatch);
             } else {
-                // 小量emoji直接缓存
-                window.categoryCache.set(categoryName, fragment.cloneNode(true));
+                // 小量emoji直接缓存（修复bug：需要在添加到DOM后缓存）
+                window.categoryCache.set(categoryName, emojiContent.cloneNode(true));
             }
         }
         
@@ -291,8 +292,9 @@
         // 性能优化：检查缓存
         if (window.variantCache.has(emoji)) {
             const cachedVariants = window.variantCache.get(emoji);
-            // 性能优化1：使用replaceChildren替代innerHTML
-            popup.replaceChildren(cachedVariants.cloneNode(true));
+            // 性能优化1：克隆缓存内容并使用replaceChildren
+            const clonedVariants = cachedVariants.cloneNode(true);
+            popup.replaceChildren(...clonedVariants.childNodes);
         } else {
             // 首次显示该变体
             const fragment = document.createDocumentFragment();
@@ -312,9 +314,10 @@
                 fragment.appendChild(variantItem);
             });
             
-            window.variantCache.set(emoji, fragment.cloneNode(true));
-            // 性能优化1：使用replaceChildren替代innerHTML
+            // 性能优化1：使用replaceChildren
             popup.replaceChildren(fragment);
+            // 修复bug：在添加到DOM后缓存实际内容
+            window.variantCache.set(emoji, popup.cloneNode(true));
         }
         
         // 位置计算
