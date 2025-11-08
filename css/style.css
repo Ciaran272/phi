@@ -295,7 +295,6 @@ h1 {
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     transform: translateZ(0);
     contain: layout style;
-    content-visibility: auto;
     overscroll-behavior: contain;
 }
 
@@ -321,7 +320,6 @@ h1 {
     box-shadow: 0 2px 4px rgba(0,0,0,0.12);
     will-change: transform;
     contain: layout style paint;
-    content-visibility: auto;
 }
 
 .emoji-item:hover {
@@ -431,7 +429,6 @@ h1 {
     box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     will-change: transform;
     contain: layout style paint;
-    content-visibility: auto;
 }
 
 .variant-item:hover {
